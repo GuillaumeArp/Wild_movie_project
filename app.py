@@ -4,6 +4,25 @@ import pandas as pd
 import plotly.express as px
 # import plotly.graph_objects as go 
 
+def main():
+
+    pages = {
+        'Home': home,
+        'Movie Duration': movie_duration,
+        'Ratings': movie_ratings}
+
+    if "page" not in st.session_state:
+        st.session_state.update({
+        # Default page
+        'page': 'Home'
+        })
+
+    with st.sidebar:
+        page = st.selectbox("Choose a page", tuple(pages.keys()))
+
+    pages[page]()
+
+
 st.set_page_config(page_title='Movie Analysis', page_icon=':cat:')
 
 def _max_width_():
@@ -66,27 +85,6 @@ data_runtime = load_basics()
 data_ratings = load_ratings()
 # Notify the reader that the data was successfully loaded.
 data_load_state.text('Loading data...done!')
-
-
-
-def main():
-
-    pages = {
-        'Home': home,
-        'Movie Duration': movie_duration,
-        'Ratings': movie_ratings}
-
-    if "page" not in st.session_state:
-        st.session_state.update({
-        # Default page
-        'page': 'Home'
-        })
-
-    with st.sidebar:
-        page = st.selectbox("Choose a page", tuple(pages.keys()))
-
-    pages[page]()
-
 
 def home():
 
