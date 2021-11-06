@@ -3,6 +3,4 @@ base="dark"
 secondaryBackgroundColor="#111111"
 
 [server]
-headless = true
-enableCORS=false
-port = 8080
+port = 80
