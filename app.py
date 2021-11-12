@@ -1,27 +1,9 @@
 import streamlit as st
 import pandas as pd
-# import numpy as np
+import numpy as np
 import plotly.express as px
-# import plotly.graph_objects as go 
-
-def main():
-
-    pages = {
-        'Home': home,
-        'Movie Duration': movie_duration,
-        'Ratings': movie_ratings}
-
-    if "page" not in st.session_state:
-        st.session_state.update({
-        # Default page
-        'page': 'Home'
-        })
-
-    with st.sidebar:
-        page = st.selectbox("Choose a page", tuple(pages.keys()))
-
-    pages[page]()
-
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 st.set_page_config(page_title='Movie Analysis', page_icon=':cat:')
 
@@ -47,44 +29,42 @@ st.title('Movie Analysis Project')
 #     ("Movie Duration", "Ratings")
 # )
 
-@st.cache
-def load_basics():
-    basics_df = pd.read_csv("https://datasets.imdbws.com/title.basics.tsv.gz", sep="\t", low_memory=False)
-    basics_df = basics_df[basics_df['isAdult'] == '0']
-    basics_df = basics_df[basics_df['titleType'] == 'movie']
-    basics_df = basics_df.replace('\\N', pd.NaT)
-    basics_df = basics_df[['startYear', 'runtimeMinutes']]
-    basics_df.dropna(inplace=True)
-    basics_df = basics_df.astype({'runtimeMinutes': int})
-    basics_df = basics_df.astype({'startYear': int})
-    basics_df = basics_df[(basics_df['runtimeMinutes'] >= 58) & (basics_df['runtimeMinutes'] <= 270)]
-    basics_df = basics_df[(basics_df['startYear'] >= 1918) & (basics_df['startYear'] <= 2021)]
-    basics_df = basics_df.groupby('startYear').mean()
-    basics_df = round(basics_df['runtimeMinutes'], 2)
-    return basics_df
 
-@st.cache
 def load_ratings():
-    ratings_df = pd.read_csv("https://datasets.imdbws.com/title.ratings.tsv.gz", sep="\t")
-    basics_df = pd.read_csv("https://datasets.imdbws.com/title.basics.tsv.gz", sep="\t", low_memory=False)
-    basics_df = basics_df[basics_df['isAdult'] == '0']
-    basics_df = basics_df[basics_df['titleType'] == 'movie']
-    basics_df = basics_df[['tconst', 'primaryTitle', 'startYear', 'genres']]
-    movies_ratings = pd.merge(basics_df, ratings_df, how='inner', left_on='tconst', right_on='tconst')
-    movies_ratings.reset_index(drop=True, inplace=True)
-    movies_ratings = movies_ratings[movies_ratings['averageRating'] >= 8.4]
-    movies_ratings = movies_ratings[movies_ratings['numVotes'] >= 20000]
-    movies_ratings[['mainGenre', 'secondaryGenres']] = movies_ratings['genres'].str.split(',', n=1, expand=True)
-    return movies_ratings
+    return pd.read_csv('data/movies_ratings.csv')
 
+def load_runtime():
+    return pd.read_csv('data/movies_duration.csv')
 
-# Create a text element and let the reader know the data is loading.
-data_load_state = st.text('Loading data...')
-# Load 10,000 rows of data into the dataframe.
-data_runtime = load_basics()
+def load_actors():
+    return pd.read_csv('data/actors_movies_year.csv')
+
+data_load_state = st.text('Loading pages...')
+data_runtime = load_runtime()
 data_ratings = load_ratings()
-# Notify the reader that the data was successfully loaded.
-data_load_state.text('Loading data...done!')
+data_actors = load_actors()
+data_load_state.text('Loading pages...done!')
+
+
+def main():
+
+    pages = {
+        'Home': home,
+        'Movie Duration': movie_duration,
+        'Ratings': movie_ratings,
+        'Actors': actors_ratings}
+
+    if "page" not in st.session_state:
+        st.session_state.update({
+        # Default page
+        'page': 'Home'
+        })
+
+    with st.sidebar:
+        page = st.selectbox("Choose a page", tuple(pages.keys()))
+
+    pages[page]()
+
 
 def home():
 
@@ -162,6 +142,120 @@ def movie_ratings():
     st.plotly_chart(fig, use_container_width=True)
 
     'As we can notice here, almost half of all the movies in the list are dramas or action movies.'
+
+def actors_ratings():
+
+    st.subheader('Most Active Actors')
+
+    'We wanted here to know which actors appear in the most movies.' 'In order to do that, we first had to fetch data regarding actors or actresses only. We have decided then to limit the scope to movies released after 1920.'
+    'The data has finally been divided by decades in order to get a better insight into who were the most productive actors of their times.'
+
+
+    depart = 1920
+    fin = 1929
+    subplot = []
+    for i in range(11):
+        actors_movies_decade = data_actors.loc[(data_actors['startYear']>=depart)&(data_actors['startYear']<=fin)]
+        temp = actors_movies_decade['primaryName'].value_counts()[:5].rename_axis('name').reset_index(name='count')
+        subplot.append(temp)
+        depart+=10
+        fin+=10
+    globa = data_actors['primaryName'].value_counts()[:5].rename_axis('name').reset_index(name='count')
+
+    fig = make_subplots(
+        rows=4, cols=3,
+        subplot_titles=('1920-1929', '1930-1939','1940-1949','1950-1959','1960-1969','1970-1979','1980-1989','1990-1999','2000-2009','2010-2019','2020-2029','toutes périodes confondues'),
+        )
+
+    fig.append_trace(
+        go.Bar(x=subplot[0]['name'],
+        y=subplot[0]['count'],
+        marker_color=px.colors.qualitative.Plotly),
+        row=1, col=1
+    )
+
+    fig.append_trace(
+        go.Bar(x=subplot[1]['name'],
+        y=subplot[1]['count'],
+        marker_color=px.colors.qualitative.Plotly),
+        row=1, col=2
+    )
+
+    fig.append_trace(
+        go.Bar(x=subplot[2]['name'],
+        y=subplot[2]['count'],
+        marker_color=px.colors.qualitative.Plotly),
+        row=1, col=3
+    )
+
+    fig.append_trace(
+        go.Bar(x=subplot[3]['name'],
+        y=subplot[3]['count'],
+        marker_color=px.colors.qualitative.Plotly),
+        row=2, col=1
+    )
+
+    fig.append_trace(
+        go.Bar(x=subplot[4]['name'],
+        y=subplot[4]['count'],
+        marker_color=px.colors.qualitative.Plotly),
+        row=2, col=2
+    )
+
+    fig.append_trace(
+        go.Bar(x=subplot[5]['name'],
+        y=subplot[5]['count'],
+        marker_color=px.colors.qualitative.Plotly),
+        row=2, col=3
+    )
+
+    fig.append_trace(
+        go.Bar(x=subplot[6]['name'],
+        y=subplot[6]['count'],
+        marker_color=px.colors.qualitative.Plotly),
+        row=3, col=1
+    )
+
+    fig.append_trace(
+        go.Bar(x=subplot[7]['name'],
+        y=subplot[7]['count'],
+        marker_color=px.colors.qualitative.Plotly),
+        row=3, col=2
+    )
+
+    fig.append_trace(
+        go.Bar(x=subplot[8]['name'],
+        y=subplot[8]['count'],
+        marker_color=px.colors.qualitative.Plotly),
+        row=3, col=3
+    )
+
+    fig.append_trace(
+        go.Bar(x=subplot[9]['name'],
+        y=subplot[9]['count'],
+        marker_color=px.colors.qualitative.Plotly),
+        row=4, col=1
+    )
+
+    fig.append_trace(
+        go.Bar(x=subplot[10]['name'],
+        y=subplot[10]['count'],
+        marker_color=px.colors.qualitative.Plotly),
+        row=4, col=2
+    )
+
+    fig.append_trace(
+        go.Bar(x=globa['name'],
+        y=globa['count'],
+        marker_color=px.colors.qualitative.Plotly),
+        row=4, col=3
+    )
+
+    fig.update_layout(template='plotly_dark', title='5 Most Active Actors in Movies per Decade' ,showlegend=False,height = 1250,width=1000)
+    st.plotly_chart(fig, use_container_width=True)
+
+    'There are some noticeable patterns here. During the 1920s and 1930s decades, most of the top 5 actors (when it comes to the sheer number of movies) were Japanese, with the notable exception of Sau-Nin Wong who lived in Hong Kong. The numbers are also on par with more recent decades, indicating a very prolific film industry in the Far East before the Second World War. This warrants deeper analysis, but it is worth reminding for now that a political context of extreme nationalism and regional conflict often means a heavy production of propaganda movies.'
+    
 
 if __name__ == "__main__":
     main()
